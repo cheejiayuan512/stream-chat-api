@@ -7,7 +7,7 @@ import User from '../../../models/user';
 
 dotenv.config();
 
-exports.init = async (req, res) => {
+exports.setAdmin = async (req, res) => {
 	try {
 		// extract json from body
 		const data = req.body;
@@ -29,12 +29,12 @@ exports.init = async (req, res) => {
 
 		const client = new StreamChat(apiKey, apiSecret);
 
+		// if the channel does not exist, this creates a new channel (e.g. initialization)
 		const channel = await client.channel('messaging', 'General');
 		const state = await channel.watch();
-
 		// Lookup the user in the database
 		let user = await User.findOne(
-			{ email: data.email } // lowercase email to avoid lookup issues
+			{ email: data.email }, // lowercase email to avoid lookup issues
 		);
 
 		// if the user does not exist
@@ -59,9 +59,12 @@ exports.init = async (req, res) => {
 			await client.updateUsers([
 				{
 					id: user._id,
-					role: 'user', // https://getstream.io/chat/docs/js/#update_users
+					role: 'admin', // https://getstream.io/chat/docs/js/#update_users
 				},
 			]);
+
+			// add the new user to the general channel using their member id
+			await channel.addMembers([user._id]);
 
 			// sanitize / remove password
 			delete user.password;
